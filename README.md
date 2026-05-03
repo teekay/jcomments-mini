@@ -59,6 +59,12 @@ Install dependencies:
 npm install
 ```
 
+Copy the example Wrangler config and adjust as needed:
+
+```sh
+cp wrangler.toml.example wrangler.toml
+```
+
 Install the Wrangler CLI (Cloudflare's deployment tool) if you don't have it globally:
 
 ```sh

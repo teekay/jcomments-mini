@@ -6,3 +6,4 @@ dist/
 .dictum/*.db
 .dictum/*.shm
 .dictum/*.wal
+wrangler.toml
