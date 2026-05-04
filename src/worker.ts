@@ -86,8 +86,21 @@ async function handleDelete(request: Request, url: URL, env: Env): Promise<Respo
   return json({ success: true });
 }
 
+async function parseBody(request: Request): Promise<Record<string, unknown>> {
+  const contentType = request.headers.get('Content-Type') || '';
+  if (contentType.includes('application/json')) {
+    return request.json();
+  }
+  const formData = await request.formData();
+  const obj: Record<string, unknown> = {};
+  for (const [key, value] of formData.entries()) {
+    obj[key] = value;
+  }
+  return obj;
+}
+
 async function handlePost(request: Request, env: Env): Promise<Response> {
-  const body = await request.json<Record<string, unknown>>();
+  const body = await parseBody(request);
 
   if (body.siteKey !== env.SITE_KEY) {
     return json({ error: 'Invalid site key' }, 403);
@@ -99,7 +112,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
 
   const ip = request.headers.get('CF-Connecting-IP') || '';
   const turnstileOk = await verifyTurnstile(
-    (body.turnstileToken as string) || '',
+    (body['cf-turnstile-response'] as string) || '',
     env.TURNSTILE_SECRET || '',
     ip,
   );
@@ -108,6 +121,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
   }
 
   const author = (body.author as string)?.trim();
+  const email = (body.email as string)?.trim() || undefined;
   const text = (body.text as string)?.trim();
   const pageUrl = body.url as string;
 
@@ -118,6 +132,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
   const comment: Comment = {
     id: crypto.randomUUID(),
     author,
+    ...(email && { email }),
     text,
     createdAt: new Date().toISOString(),
   };

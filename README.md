@@ -21,7 +21,7 @@ If a spam comment slips through, you delete it with a single `curl` call.
 | Route | Purpose |
 |---|---|
 | `GET /comments?url=/some/page&since=<ISO timestamp>` | Fetch comments for a page. Omit `url` to get all comments grouped by page (for build-time). `since` is optional. |
-| `POST /comment` | Submit a new comment. Requires `siteKey`, `url`, `author`, `text` in the JSON body. |
+| `POST /comment` | Submit a new comment. Requires `siteKey`, `url`, `author`, `text` in the body. `email` is optional. Accepts JSON or form-encoded. |
 | `DELETE /comment?url=/some/page&id=<comment-id>` | Remove a comment. Requires `Authorization: Bearer <ADMIN_KEY>` header. |
 
 **Storage**: one JSON file per page in object storage (Cloudflare R2 by default). No database.
@@ -134,6 +134,7 @@ Add this to your page template:
 
 <form id="jcomments-form">
   <input name="author" placeholder="Name" required>
+  <input name="email" type="email" placeholder="Email (optional)">
   <textarea name="text" placeholder="Comment" required></textarea>
   <!-- Honeypot field, hidden from humans -->
   <div style="display:none">
@@ -188,10 +189,10 @@ The `scripts/fetch-comments.js` file exports two functions for use in your stati
 ```js
 const { fetchAllComments, fetchCommentsForPage } = require('./scripts/fetch-comments');
 
-// All comments, grouped by page path: { "/blog/post": [{ id, author, text, createdAt }] }
+// All comments, grouped by page path: { "/blog/post": [{ id, author, email?, text, createdAt }] }
 const all = await fetchAllComments('https://jcomments-mini.<you>.workers.dev');
 
-// Comments for a single page: [{ id, author, text, createdAt }]
+// Comments for a single page: [{ id, author, email?, text, createdAt }]
 const comments = await fetchCommentsForPage(
   'https://jcomments-mini.<you>.workers.dev',
   '/blog/my-post'
@@ -253,7 +254,7 @@ The default implementation stores one JSON file per page in R2 under the key `co
 
 **AWS S3 / Google Cloud Storage / Azure Blob Storage**: Drop-in replacement. Same JSON-file-per-page layout; just swap the SDK calls. S3 is even API-compatible with R2.
 
-**SQLite (local or Turso)**: Create a `comments` table with `page_url`, `id`, `author`, `text`, `created_at` columns. `getComments` becomes a `SELECT WHERE page_url = ?`. `getAllComments` becomes a `SELECT` grouped by `page_url`. Good choice if you're running a long-lived server instead of serverless.
+**SQLite (local or Turso)**: Create a `comments` table with `page_url`, `id`, `author`, `email`, `text`, `created_at` columns. `getComments` becomes a `SELECT WHERE page_url = ?`. `getAllComments` becomes a `SELECT` grouped by `page_url`. Good choice if you're running a long-lived server instead of serverless.
 
 **Redis / KV stores**: Store a JSON array per page key. Reads and writes are single-key operations, which maps naturally.
 

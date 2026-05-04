@@ -59,9 +59,11 @@ const pages = {};
 for (const row of raw) {
   const key = storageKey(row.postUrl);
   if (!pages[key]) pages[key] = [];
+  const email = row.author && row.author.email;
   pages[key].push({
     id: crypto.randomUUID(),
     author: (row.author && row.author.name) || 'Anonymous',
+    ...(email && { email }),
     text: stripHtml(row.text || ''),
     createdAt: row.postedAt || new Date().toISOString(),
   });

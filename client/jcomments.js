@@ -77,9 +77,11 @@
         text: fd.get('text'),
         website2: fd.get('website2') || '',
       };
+      var email = fd.get('email');
+      if (email) payload.email = email;
 
       var turnstile = self.form.querySelector('[name="cf-turnstile-response"]');
-      if (turnstile) payload.turnstileToken = turnstile.value;
+      if (turnstile) payload['cf-turnstile-response'] = turnstile.value;
 
       fetch(self.endpoint + '/comment', {
         method: 'POST',
