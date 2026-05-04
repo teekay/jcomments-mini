@@ -4,7 +4,7 @@
 //   DELETE /comment   — remove a comment by id (requires ADMIN_KEY via Bearer token)
 
 import { Env, Comment } from './types';
-import { getComments, getAllComments, addComment, deleteComment } from './storage';
+import { getComments, getAllComments, addComment, deleteComment, logSpam } from './storage';
 import { isHoneypotFilled, verifyTurnstile } from './spam';
 
 const CORS = {
@@ -106,17 +106,24 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     return json({ error: 'Invalid site key' }, 403);
   }
 
+  const ip = request.headers.get('CF-Connecting-IP') || '';
+
   if (isHoneypotFilled(body)) {
+    const entry = { timestamp: new Date().toISOString(), reason: 'honeypot' as const, ip, author: (body.author as string) || undefined, url: body.url as string };
+    console.log('spam:honeypot', entry);
+    await logSpam(env, entry);
     return json({ success: true });
   }
 
-  const ip = request.headers.get('CF-Connecting-IP') || '';
   const turnstileOk = await verifyTurnstile(
     (body['cf-turnstile-response'] as string) || '',
     env.TURNSTILE_SECRET || '',
     ip,
   );
   if (!turnstileOk) {
+    const entry = { timestamp: new Date().toISOString(), reason: 'turnstile' as const, ip, author: (body.author as string) || undefined, url: body.url as string };
+    console.log('spam:turnstile', entry);
+    await logSpam(env, entry);
     return json({ success: true });
   }
 

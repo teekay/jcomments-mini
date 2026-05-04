@@ -1,6 +1,6 @@
 // R2 storage layer. One JSON file per page, keyed by URL path.
 
-import { Comment, Env } from './types';
+import { Comment, SpamEntry, Env } from './types';
 
 export function storageKey(pageUrl: string): string {
   let pathname: string;
@@ -56,4 +56,13 @@ export async function addComment(env: Env, pageUrl: string, comment: Comment): P
   const comments = await getComments(env, pageUrl);
   comments.push(comment);
   await env.COMMENTS.put(key, JSON.stringify(comments));
+}
+
+export async function logSpam(env: Env, entry: SpamEntry): Promise<void> {
+  const date = entry.timestamp.slice(0, 10);
+  const key = `spam/${date}.json`;
+  const existing = await env.COMMENTS.get(key);
+  const entries: SpamEntry[] = existing ? await existing.json() : [];
+  entries.push(entry);
+  await env.COMMENTS.put(key, JSON.stringify(entries));
 }

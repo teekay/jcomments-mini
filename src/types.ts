@@ -8,6 +8,14 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface SpamEntry {
+  timestamp: string;
+  reason: 'honeypot' | 'turnstile';
+  ip: string;
+  author?: string;
+  url?: string;
+}
+
 export interface Env {
   COMMENTS: R2Bucket;
   SITE_KEY: string;
