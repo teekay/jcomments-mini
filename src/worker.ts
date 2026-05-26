@@ -6,6 +6,7 @@
 import { Env, Comment } from './types';
 import { getComments, getAllComments, addComment, deleteComment, logSpam } from './storage';
 import { isHoneypotFilled, verifyTurnstile } from './spam';
+import { renderMarkdown } from './markdown';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -141,9 +142,10 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     author,
     ...(email && { email }),
     text,
+    html: renderMarkdown(text),
     createdAt: new Date().toISOString(),
   };
 
   await addComment(env, pageUrl, comment);
-  return json({ success: true, id: comment.id }, 201);
+  return json({ success: true, id: comment.id, html: comment.html }, 201);
 }

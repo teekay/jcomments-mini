@@ -5,6 +5,7 @@ export interface Comment {
   author: string;
   email?: string;
   text: string;
+  html?: string;
   createdAt: string;
 }
 

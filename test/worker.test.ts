@@ -1,8 +1,8 @@
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
 
-const SITE_KEY = 'change-me';
-const ADMIN_KEY = 'change-me-too';
+const SITE_KEY = 'test-site-key';
+const ADMIN_KEY = 'test-admin-key';
 
 function post(overrides: Record<string, unknown> = {}) {
   return SELF.fetch('https://test.local/comment', {
@@ -258,6 +258,133 @@ describe('URL normalization', () => {
 
     const stored = await env.COMMENTS.get('comments/index.json');
     expect(stored).not.toBeNull();
+  });
+});
+
+// --- Markdown rendering ---
+
+describe('markdown rendering', () => {
+  it('renders bold and italic', async () => {
+    const res = await post({ url: '/md/bold', text: '**bold** and *italic*' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/bold');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).toContain('<strong>bold</strong>');
+    expect(comments[0].html).toContain('<em>italic</em>');
+  });
+
+  it('renders inline code', async () => {
+    const res = await post({ url: '/md/code', text: 'Use `console.log()`' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/code');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).toContain('<code>console.log()</code>');
+  });
+
+  it('renders strikethrough', async () => {
+    const res = await post({ url: '/md/strike', text: '~~deleted~~' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/strike');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).toContain('<del>deleted</del>');
+  });
+
+  it('renders blockquotes', async () => {
+    const res = await post({ url: '/md/quote', text: '> quoted text' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/quote');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).toContain('<blockquote>');
+  });
+
+  it('renders lists', async () => {
+    const res = await post({ url: '/md/list', text: '- item one\n- item two' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/list');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).toContain('<ul>');
+    expect(comments[0].html).toContain('<li>item one</li>');
+    expect(comments[0].html).toContain('<li>item two</li>');
+  });
+
+  it('strips links', async () => {
+    const res = await post({ url: '/md/links', text: '[click here](https://evil.com)' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/links');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).not.toContain('<a');
+    expect(comments[0].html).not.toContain('href');
+    expect(comments[0].html).not.toContain('evil.com');
+  });
+
+  it('strips images', async () => {
+    const res = await post({ url: '/md/img', text: '![alt](https://evil.com/image.png)' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/img');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).not.toContain('<img');
+    expect(comments[0].html).not.toContain('src=');
+  });
+
+  it('strips inline script tags', async () => {
+    const res = await post({ url: '/md/script', text: 'Hello <script>alert(1)</script> world' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/script');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).not.toContain('<script');
+    expect(comments[0].html).not.toContain('alert');
+  });
+
+  it('strips inline HTML tags', async () => {
+    const res = await post({ url: '/md/html', text: '<div class="evil">content</div>' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/html');
+    const comments = await getRes.json<{ html?: string }[]>();
+    expect(comments[0].html).not.toContain('<div');
+    expect(comments[0].html).not.toContain('class=');
+  });
+
+  it('strips event handler attributes', async () => {
+    const res = await post({ url: '/md/events', text: 'text' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/events');
+    const comments = await getRes.json<{ html?: string }[]>();
+    // No attributes should be present at all
+    expect(comments[0].html).not.toMatch(/on\w+=/);
+  });
+
+  it('preserves raw text alongside html', async () => {
+    const res = await post({ url: '/md/both', text: '**bold**' });
+    expect(res.status).toBe(201);
+
+    const getRes = await get('url=/md/both');
+    const comments = await getRes.json<{ text: string; html?: string }[]>();
+    expect(comments[0].text).toBe('**bold**');
+    expect(comments[0].html).toContain('<strong>bold</strong>');
+  });
+
+  it('backward compat: comments without html field are returned as-is', async () => {
+    await env.COMMENTS.put(
+      'comments/compat/old.json',
+      JSON.stringify([
+        { id: '1', author: 'Legacy', text: 'plain text', createdAt: '2026-01-01T00:00:00.000Z' },
+      ]),
+    );
+
+    const res = await get('url=/compat/old');
+    const comments = await res.json<{ html?: string; text: string }[]>();
+    expect(comments[0].text).toBe('plain text');
+    expect(comments[0].html).toBeUndefined();
   });
 });
 

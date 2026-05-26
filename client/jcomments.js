@@ -52,10 +52,14 @@
 
     var body = document.createElement('div');
     body.className = 'jcomment-body';
-    comment.text.split('\n').forEach(function (line, i) {
-      if (i > 0) body.appendChild(document.createElement('br'));
-      body.appendChild(document.createTextNode(line));
-    });
+    if (comment.html) {
+      body.innerHTML = comment.html;
+    } else {
+      comment.text.split('\n').forEach(function (line, i) {
+        if (i > 0) body.appendChild(document.createElement('br'));
+        body.appendChild(document.createTextNode(line));
+      });
+    }
 
     el.appendChild(header);
     el.appendChild(body);
@@ -95,6 +99,7 @@
               id: result.id,
               author: payload.author,
               text: payload.text,
+              html: result.html,
               createdAt: new Date().toISOString(),
             });
           }
